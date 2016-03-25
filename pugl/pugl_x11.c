@@ -77,7 +77,9 @@ getVisual(PuglView* view)
 		                       GLX_RED_SIZE,   4,
 		                       GLX_GREEN_SIZE, 4,
 		                       GLX_BLUE_SIZE,  4,
-		                       GLX_DEPTH_SIZE, 16,
+                               GLX_ALPHA_SIZE, 4,
+		                       GLX_DEPTH_SIZE, 24,
+                               GLX_STENCIL_SIZE, 8,
 		                       None };
 		vi = glXChooseVisual(impl->display, impl->screen, double_attrs);
 		if (!vi) {
@@ -86,7 +88,9 @@ getVisual(PuglView* view)
 			                       GLX_RED_SIZE,   4,
 			                       GLX_GREEN_SIZE, 4,
 			                       GLX_BLUE_SIZE,  4,
-			                       GLX_DEPTH_SIZE, 16,
+                                   GLX_ALPHA_SIZE, 4,
+			                       GLX_DEPTH_SIZE, 24,
+                                   GLX_STENCIL_SIZE, 8,
 			                       None };
 			vi = glXChooseVisual(impl->display, impl->screen, single_attrs);
 			impl->doubleBuffered = False;
