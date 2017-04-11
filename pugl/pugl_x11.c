@@ -56,6 +56,8 @@ struct PuglInternalsImpl {
 	GLXContext       ctx;
 	Bool             doubleBuffered;
 #endif
+    int dnd_x;
+    int dnd_y;
 };
 
 PuglInternals*
@@ -265,6 +267,11 @@ puglCreateWindow(PuglView* view, const char* title)
 	}
 
 	XFree(vi);
+
+    unsigned char version = 4;
+    Atom dnd_aware = XInternAtom(impl->display, "XdndAware", false);
+    XChangeProperty(impl->display, impl->win, dnd_aware, XA_ATOM,
+            32, PropModeReplace, &version, 1);
 
 	return 0;
 }
@@ -519,7 +526,48 @@ puglProcessEvents(PuglView* view)
 			if (!strcmp(type, "WM_PROTOCOLS") && view->closeFunc) {
 				view->closeFunc(view);
 				view->redisplay = false;
-			}
+			} else if(!strcmp(type, "XdndPosition")) {
+                int global_x = (xevent.xclient.data.l[2]>>16) & 0xFFFF;
+                int global_y = (xevent.xclient.data.l[2]>>00) & 0xFFFF;
+                int win_x = 0, win_y = 0;
+                int local_x = 0, local_y = 0;
+                Window child;
+                XTranslateCoordinates(view->impl->display, view->impl->win,
+                        RootWindow(view->impl->display, view->impl->screen), 0, 0, &win_x, &win_y, &child);
+                view->impl->dnd_x = global_x - win_x;
+                view->impl->dnd_y = global_y - win_y;
+
+                //printf("xdnd at (%d, %d) <%d %d %d %d>\n", local_x, local_y, global_x, global_y, win_x, win_y);
+                view->motionFunc(view, view->impl->dnd_x, view->impl->dnd_y);
+
+
+                Window ev_source = xevent.xclient.data.l[0];
+                XEvent reply;
+                memset(&reply, 0, sizeof(reply));
+                reply.xany.type = ClientMessage;
+                reply.xany.display = view->impl->display;
+                reply.xclient.window = ev_source;
+                reply.xclient.format = 32;
+                reply.xclient.message_type = XInternAtom(view->impl->display, "XdndStatus", false);
+                reply.xclient.data.l[0] = xevent.xclient.window;
+                reply.xclient.data.l[1] = 1;
+                reply.xclient.data.l[2] = 0;
+                reply.xclient.data.l[3] = 0;
+                reply.xclient.data.l[4] = XInternAtom(view->impl->display, "XdndActionPrivate", false);
+                XSendEvent(view->impl->display, ev_source, false, NoEventMask, &reply);
+                XFlush(view->impl->display);
+
+                //printf("X drag and drop position...\n");
+            } else if(!strcmp(type, "XdndEnter")) {
+                //printf("X drag and drop enter...\n");
+            } else if(!strcmp(type, "XdndLeave")) {
+                //printf("X drag and drop leave...\n");
+            } else if(!strcmp(type, "XdndDrop")) {
+                //printf("X drag and drop drop...\n");
+                view->mouseFunc(view, 4, 1, view->impl->dnd_x, view->impl->dnd_y);
+                //printf("mousefunc called...\n");
+            }
+
 			XFree(type);
 			continue;
 		} else if (xevent.type == KeyRelease) {
